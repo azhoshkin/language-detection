@@ -26,12 +26,12 @@ namespace LanguageDetection
 {
     public class LanguageDetector
     {
-        private static readonly Regex UrlRegex = new Regex("https?://[-_.?&~;+=/#0-9A-Za-z]{1,2076}", RegexOptions.Compiled);
-        private static readonly Regex EmailRegex = new Regex("[-_.0-9A-Za-z]{1,64}@[-_0-9A-Za-z]{1,255}[-_.0-9A-Za-z]{1,255}", RegexOptions.Compiled);
+        private static readonly Regex urlRegex = new Regex("https?://[-_.?&~;+=/#0-9A-Za-z]{1,2076}", RegexOptions.Compiled);
+        private static readonly Regex emailRegex = new Regex("[-_.0-9A-Za-z]{1,64}@[-_0-9A-Za-z]{1,255}[-_.0-9A-Za-z]{1,255}", RegexOptions.Compiled);
         private const string ResourceNamePrefix = "LanguageDetection.Profiles.";
 
-        private List<LanguageProfile> languages;
-        private Dictionary<string, Dictionary<LanguageProfile, double>> wordLanguageProbabilities;
+        private readonly List<LanguageProfile> languageProfiles;
+        private readonly Dictionary<string, Dictionary<LanguageProfile, double>> wordLanguageProbabilities;
 
         public LanguageDetector()
         {
@@ -47,7 +47,7 @@ namespace LanguageDetection
             NGramLength = 3;
             MaxTextLength = 10000;
 
-            languages = new List<LanguageProfile>();
+            languageProfiles = new List<LanguageProfile>();
             wordLanguageProbabilities = new Dictionary<string, Dictionary<LanguageProfile, double>>();
         }
 
@@ -77,18 +77,22 @@ namespace LanguageDetection
             foreach (string language in languages)
             {
                 using (Stream stream = assembly.GetManifestResourceStream(ResourceNamePrefix + language + ".bin.gz"))
-                using (Stream decompressedStream = new GZipStream(stream, CompressionMode.Decompress))
                 {
-                    LanguageProfile profile = new LanguageProfile();
-                    profile.Load(decompressedStream);
-                    AddLanguageProfile(profile);
+                    if (stream == null)
+                        continue;
+                    using (Stream decompressedStream = new GZipStream(stream, CompressionMode.Decompress))
+                    {
+                        LanguageProfile profile = new LanguageProfile();
+                        profile.Load(decompressedStream);
+                        AddLanguageProfile(profile);
+                    }
                 }
             }
         }
-        
+
         private void AddLanguageProfile(LanguageProfile profile)
         {
-            languages.Add(profile);
+            languageProfiles.Add(profile);
 
             foreach (string word in profile.Frequencies.Keys)
             {
@@ -115,8 +119,8 @@ namespace LanguageDetection
             if (ngrams.Count == 0)
                 return new DetectedLanguage[0];
 
-            double[] languageProbabilities = new double[languages.Count];
-            
+            double[] languageProbabilities = new double[languageProfiles.Count];
+
             Random random = RandomSeed != null ? new Random(RandomSeed.Value) : new Random();
 
             for (int t = 0; t < Trials; t++)
@@ -128,15 +132,15 @@ namespace LanguageDetection
                 {
                     int r = random.Next(ngrams.Count);
                     UpdateProbabilities(probs, ngrams[r], alpha);
-                    
+
                     if (i % 5 == 0)
                     {
-                        if (NormalizeProbabilities(probs) > ConvergenceThreshold || i >= MaxIterations) 
+                        if (NormalizeProbabilities(probs) > ConvergenceThreshold || i >= MaxIterations)
                             break;
                     }
                 }
 
-                for (int j = 0; j < languageProbabilities.Length; j++) 
+                for (int j = 0; j < languageProbabilities.Length; j++)
                     languageProbabilities[j] += probs[j] / Trials;
             }
 
@@ -153,7 +157,7 @@ namespace LanguageDetection
             {
                 ngram.Add(c);
 
-                for (int n = 1; n <= NGram.N_GRAM; n++)
+                for (int n = 1; n <= NGram.NGramLength; n++)
                 {
                     string w = ngram.Get(n);
 
@@ -227,7 +231,7 @@ namespace LanguageDetection
 
             foreach (char c in text)
             {
-                if (c != ' ' || prev != ' ') 
+                if (c != ' ' || prev != ' ')
                     sb.Append(c);
                 prev = c;
             }
@@ -237,8 +241,8 @@ namespace LanguageDetection
 
         private static string RemoveAddresses(string text)
         {
-            text = UrlRegex.Replace(text, " ");
-            text = EmailRegex.Replace(text, " ");
+            text = urlRegex.Replace(text, " ");
+            text = emailRegex.Replace(text, " ");
             return text;
         }
         #endregion
@@ -246,23 +250,23 @@ namespace LanguageDetection
         #region Probabilities
         private double[] InitializeProbabilities()
         {
-            double[] prob = new double[languages.Count];
-            for (int i = 0; i < prob.Length; i++) 
-                prob[i] = 1.0 / languages.Count;
+            double[] prob = new double[languageProfiles.Count];
+            for (int i = 0; i < prob.Length; i++)
+                prob[i] = 1.0 / languageProfiles.Count;
             return prob;
         }
 
         private void UpdateProbabilities(double[] prob, string word, double alpha)
         {
-            if (word == null || !wordLanguageProbabilities.ContainsKey(word)) 
+            if (word == null || !wordLanguageProbabilities.ContainsKey(word))
                 return;
 
             var languageProbabilities = wordLanguageProbabilities[word];
             double weight = alpha / BaseFrequency;
-            
+
             for (int i = 0; i < prob.Length; i++)
             {
-                LanguageProfile profile = languages[i];
+                LanguageProfile profile = languageProfiles[i];
                 prob[i] *= weight + (languageProbabilities.ContainsKey(profile) ? languageProbabilities[profile] : 0);
             }
         }
@@ -270,10 +274,10 @@ namespace LanguageDetection
         private static double NormalizeProbabilities(double[] probs)
         {
             double maxp = 0, sump = 0;
-            
-            for (int i = 0; i < probs.Length; ++i) 
+
+            for (int i = 0; i < probs.Length; ++i)
                 sump += probs[i];
-            
+
             for (int i = 0; i < probs.Length; ++i)
             {
                 double p = probs[i] / sump;
@@ -298,7 +302,7 @@ namespace LanguageDetection
                     {
                         if (i == list.Count || list[i].Probability < p)
                         {
-                            list.Insert(i, new DetectedLanguage { Language = languages[j].Code, Probability = p });
+                            list.Insert(i, new DetectedLanguage { Language = languageProfiles[j].Code, Probability = p });
                             break;
                         }
                     }
@@ -317,10 +321,10 @@ namespace LanguageDetection
 
         private class NGram
         {
-            public const int N_GRAM = 3;
-            
-            private StringBuilder buffer = new StringBuilder(" ", N_GRAM);
-            private bool capital = false;
+            public const int NGramLength = 3;
+
+            private StringBuilder buffer = new StringBuilder(" ", NGramLength);
+            private bool capital;
 
             public void Add(char c)
             {
@@ -332,7 +336,7 @@ namespace LanguageDetection
                     capital = false;
                     if (c == ' ') return;
                 }
-                else if (buffer.Length >= N_GRAM)
+                else if (buffer.Length >= NGramLength)
                 {
                     buffer.Remove(0, 1);
                 }
@@ -355,7 +359,7 @@ namespace LanguageDetection
                 if (capital)
                     return null;
 
-                if (n < 1 || n > N_GRAM || buffer.Length < n) 
+                if (n < 1 || n > NGramLength || buffer.Length < n)
                     return null;
 
                 if (n == 1)
