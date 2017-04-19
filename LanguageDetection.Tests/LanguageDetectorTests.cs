@@ -66,7 +66,7 @@ namespace LanguageDetection.Tests
 
             Assert.AreEqual("sk", detector.Detect(text));
             Assert.AreEqual(1, detector.DetectAll(text).Count());
-            
+
             detector = new LanguageDetector();
             detector.RandomSeed = 1;
             detector.ConvergenceThreshold = 0.9;
@@ -80,7 +80,7 @@ namespace LanguageDetection.Tests
         private void Test(string lang, string[] texts, string[][] pairs = null)
         {
             LanguageDetector detector;
-            
+
             detector = new LanguageDetector();
             detector.RandomSeed = 1;
             detector.AddAllLanguages();
@@ -96,7 +96,7 @@ namespace LanguageDetection.Tests
                     detector.RandomSeed = 1;
                     detector.AddLanguages(pair);
                     detector.AddLanguages(lang);
-                    
+
                     foreach (string text in texts)
                         Assert.AreEqual(lang, detector.Detect(text));
                 }

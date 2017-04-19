@@ -39,7 +39,10 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DetectedLanguage.cs" />
+    <Compile Include="ILanguageDetector.cs" />
     <Compile Include="LanguageDetector.cs" />
+    <Compile Include="LanguageDetectorBase.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="LanguageProfile.cs" />
   </ItemGroup>
@@ -156,15 +159,22 @@
   <Target Name="BeforeBuild">
     <ItemGroup>
       <Profiles Include="Profiles\*" />
+      <ShortTextProfiles Include="Profiles\ShortText\*" />
     </ItemGroup>
     <ItemGroup>
       <Languages Include="@(Profiles->'%(Filename)')" />
+      <ShortTextLanguages Include="@(ShortTextProfiles->'%(Filename)')" />
     </ItemGroup>
     <MakeDir Directories="$(IntermediateOutputPath)Profiles" />
     <BinarizeLanguageProfileTask InputFilename="%(Profiles.Identity)" OutputFilename="$(IntermediateOutputPath)%(Profiles.Identity).bin.gz" />
+    <MakeDir Directories="$(IntermediateOutputPath)Profiles\ShortText" />
+    <BinarizeLanguageProfileTask InputFilename="%(ShortTextProfiles.Identity)" OutputFilename="$(IntermediateOutputPath)%(ShortTextProfiles.Identity).bin.gz" />
     <ItemGroup>
       <EmbeddedResource Include="$(IntermediateOutputPath)Profiles\%(Languages.Identity).bin.gz">
         <LogicalName>$(RootNamespace).Profiles.%(Languages.Identity).bin.gz</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="$(IntermediateOutputPath)Profiles\ShortText\%(ShortTextLanguages.Identity).bin.gz">
+        <LogicalName>$(RootNamespace).Profiles.ShortText.%(ShortTextLanguages.Identity).bin.gz</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
   </Target>

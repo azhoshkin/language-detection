@@ -24,17 +24,18 @@ using System.Text.RegularExpressions;
 
 namespace LanguageDetection
 {
-    public class LanguageDetectorBase
+    internal class LanguageDetectorBase : ILanguageDetector
     {
         private static readonly Regex urlRegex = new Regex("https?://[-_.?&~;+=/#0-9A-Za-z]{1,2076}", RegexOptions.Compiled);
         private static readonly Regex emailRegex = new Regex("[-_.0-9A-Za-z]{1,64}@[-_0-9A-Za-z]{1,255}[-_.0-9A-Za-z]{1,255}", RegexOptions.Compiled);
-        private const string ResourceNamePrefix = "LanguageDetection.Profiles.";
 
         private readonly List<LanguageProfile> languageProfiles;
         private readonly Dictionary<string, Dictionary<LanguageProfile, double>> wordLanguageProbabilities;
+        private readonly string resourceNamePrefix;
 
-        public LanguageDetectorBase()
+        public LanguageDetectorBase(string resourceNamePrefix)
         {
+            this.resourceNamePrefix = resourceNamePrefix;
             AlphaWidth = 0.05;
             MaxIterations = 1000;
             ProbabilityThreshold = 0.1;
@@ -65,8 +66,8 @@ namespace LanguageDetection
         public void AddAllLanguages()
         {
             AddLanguages(GetType().Assembly.GetManifestResourceNames()
-                                           .Where(name => name.StartsWith(ResourceNamePrefix))
-                                           .Select(name => name.Substring(ResourceNamePrefix.Length).Replace(".bin.gz", ""))
+                                           .Where(name => name.StartsWith(resourceNamePrefix))
+                                           .Select(name => name.Substring(resourceNamePrefix.Length).Replace(".bin.gz", ""))
                                            .ToArray());
         }
 
@@ -76,7 +77,7 @@ namespace LanguageDetection
 
             foreach (string language in languages)
             {
-                using (Stream stream = assembly.GetManifestResourceStream(ResourceNamePrefix + language + ".bin.gz"))
+                using (Stream stream = assembly.GetManifestResourceStream(resourceNamePrefix + language + ".bin.gz"))
                 {
                     if (stream == null)
                         continue;
