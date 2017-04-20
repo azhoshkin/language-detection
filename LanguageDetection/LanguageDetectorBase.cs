@@ -29,9 +29,21 @@ namespace LanguageDetection
         private static readonly Regex urlRegex = new Regex("https?://[-_.?&~;+=/#0-9A-Za-z]{1,2076}", RegexOptions.Compiled);
         private static readonly Regex emailRegex = new Regex("[-_.0-9A-Za-z]{1,64}@[-_0-9A-Za-z]{1,255}[-_.0-9A-Za-z]{1,255}", RegexOptions.Compiled);
 
+        private static readonly Assembly resourcesBase;
+
         private readonly List<LanguageProfile> languageProfiles;
         private readonly Dictionary<string, Dictionary<LanguageProfile, double>> wordLanguageProbabilities;
         private readonly string resourceNamePrefix;
+
+        static LanguageDetectorBase()
+        {
+            var assemblyLocation = typeof(LanguageDetectorBase).Assembly.Location;
+            var name = Path.GetFileNameWithoutExtension(assemblyLocation);
+            var directory = Path.GetDirectoryName(assemblyLocation);
+            resourcesBase = directory != null
+                ? Assembly.LoadFrom(Path.Combine(Path.Combine(directory, "bin", name + ".resources.dll")))
+                : typeof(LanguageDetectorBase).Assembly;
+        }
 
         public LanguageDetectorBase(string resourceNamePrefix)
         {
@@ -65,19 +77,17 @@ namespace LanguageDetection
 
         public void AddAllLanguages()
         {
-            AddLanguages(GetType().Assembly.GetManifestResourceNames()
-                                           .Where(name => name.StartsWith(resourceNamePrefix))
-                                           .Select(name => name.Substring(resourceNamePrefix.Length).Replace(".bin.gz", ""))
-                                           .ToArray());
+            AddLanguages(resourcesBase.GetManifestResourceNames()
+                .Where(name => name.StartsWith(resourceNamePrefix))
+                .Select(name => name.Substring(resourceNamePrefix.Length).Replace(".bin.gz", ""))
+                .ToArray());
         }
 
         public void AddLanguages(params string[] languages)
         {
-            Assembly assembly = GetType().Assembly;
-
             foreach (string language in languages)
             {
-                using (Stream stream = assembly.GetManifestResourceStream(resourceNamePrefix + language + ".bin.gz"))
+                using (Stream stream = resourcesBase.GetManifestResourceStream(resourceNamePrefix + language + ".bin.gz"))
                 {
                     if (stream == null)
                         continue;
