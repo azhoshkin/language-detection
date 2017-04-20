@@ -187,6 +187,7 @@ namespace LanguageDetection
                 text = text.Substring(0, MaxTextLength);
 
             text = RemoveAddresses(text);
+            text = text.Normalize(NormalizationForm.FormKC);
             text = NormalizeAlphabet(text);
             text = NormalizeVietnamese(text);
             text = NormalizeWhitespace(text);
