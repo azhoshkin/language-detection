@@ -61,7 +61,7 @@ namespace LanguageDetection
             MaxTextLength = 10000;
 
             languageProfiles = new List<LanguageProfile>();
-            wordLanguageProbabilities = new Dictionary<string, Dictionary<LanguageProfile, double>>();
+            wordLanguageProbabilities = new Dictionary<string, Dictionary<LanguageProfile, double>>(StringComparer.OrdinalIgnoreCase);
         }
 
         public double Alpha { get; set; }
